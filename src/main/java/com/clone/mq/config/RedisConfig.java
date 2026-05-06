@@ -1,5 +1,6 @@
 package com.clone.mq.config;
 
+import com.clone.mq.enums.RedisChannel;
 import com.clone.mq.pubsub.OrderEventSubscriber;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,14 +13,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 public class RedisConfig {
-
-    public static final String ORDER_QUEUE_KEY = "order:queue";
-    public static final String ORDER_EVENT_CHANNEL = "order:event";
-
-    // DLQ + 재시도 실습용 키
-    public static final String RETRY_QUEUE_KEY = "order:retry";
-    public static final String DLQ_KEY = "order:dlq";
-    public static final int MAX_RETRY = 3;
 
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory factory) {
@@ -59,7 +52,7 @@ public class RedisConfig {
         container.setConnectionFactory(factory);
 
         // 구독할 토픽 명
-        ChannelTopic topic = new ChannelTopic(ORDER_EVENT_CHANNEL);
+        ChannelTopic topic = new ChannelTopic(RedisChannel.ORDER_EVENT.key);
 
         // 해당 토픽을 구독하는 서비스
         // 재고 서비스

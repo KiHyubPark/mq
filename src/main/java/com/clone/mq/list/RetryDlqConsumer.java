@@ -1,6 +1,7 @@
 package com.clone.mq.list;
 
-import com.clone.mq.config.RedisConfig;
+import com.clone.mq.config.RedisKeys;
+import com.clone.mq.enums.RedisQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,7 +23,7 @@ public class RetryDlqConsumer {
     // 1초마다 retry 큐에서 메시지를 꺼내 처리 (학습용 폴링 방식)
     @Scheduled(fixedDelay = 1000)
     public void consumeRetryQueue() {
-        String message = redisTemplate.opsForList().leftPop(RedisConfig.RETRY_QUEUE_KEY);
+        String message = redisTemplate.opsForList().leftPop(RedisQueue.RETRY.key);
         if (message == null) {
             return;
         }
@@ -33,9 +34,9 @@ public class RetryDlqConsumer {
 
         System.out.println(DIVIDER);
         System.out.printf(" [#%d] POP   %s  ←  '%s'%n",
-                messageSeq, RedisConfig.RETRY_QUEUE_KEY, message);
+                messageSeq, RedisQueue.RETRY.key, message);
         System.out.printf("       parse payload=%s, retry=%d/%d%n",
-                payload, retry, RedisConfig.MAX_RETRY);
+                payload, retry, RedisKeys.MAX_RETRY);
 
         // 학습용 강제 실패 트리거: payload 가 "FAIL_" 로 시작하면 실패로 간주
         boolean failed = payload.startsWith("FAIL_");
@@ -48,22 +49,22 @@ public class RetryDlqConsumer {
         System.out.println("       FAIL  → 강제 실패 트리거 감지");
 
         int nextRetry = retry + 1;
-        if (nextRetry < RedisConfig.MAX_RETRY) {
+        if (nextRetry < RedisKeys.MAX_RETRY) {
             String requeued = payload + "|retry=" + nextRetry;
-            redisTemplate.opsForList().rightPush(RedisConfig.RETRY_QUEUE_KEY, requeued);
-            Long retrySize = redisTemplate.opsForList().size(RedisConfig.RETRY_QUEUE_KEY);
+            redisTemplate.opsForList().rightPush(RedisQueue.RETRY.key, requeued);
+            Long retrySize = redisTemplate.opsForList().size(RedisQueue.RETRY.key);
             System.out.printf("       RETRY → RPUSH %s  ←  '%s'%n",
-                    RedisConfig.RETRY_QUEUE_KEY, requeued);
+                    RedisQueue.RETRY.key, requeued);
             System.out.printf("               다음 시도 %d/%d, %s 큐 크기=%d%n",
-                    nextRetry, RedisConfig.MAX_RETRY - 1,
-                    RedisConfig.RETRY_QUEUE_KEY, retrySize);
+                    nextRetry, RedisKeys.MAX_RETRY - 1,
+                    RedisQueue.RETRY.key, retrySize);
         } else {
-            redisTemplate.opsForList().rightPush(RedisConfig.DLQ_KEY, payload);
-            Long dlqSize = redisTemplate.opsForList().size(RedisConfig.DLQ_KEY);
+            redisTemplate.opsForList().rightPush(RedisQueue.DLQ.key, payload);
+            Long dlqSize = redisTemplate.opsForList().size(RedisQueue.DLQ.key);
             System.out.printf("       DLQ   → MAX_RETRY(%d) 초과 → RPUSH %s  ←  '%s'%n",
-                    RedisConfig.MAX_RETRY, RedisConfig.DLQ_KEY, payload);
+                    RedisKeys.MAX_RETRY, RedisQueue.DLQ.key, payload);
             System.out.printf("               DLQ 크기=%d  (조회: redis-cli LRANGE %s 0 -1)%n",
-                    dlqSize, RedisConfig.DLQ_KEY);
+                    dlqSize, RedisQueue.DLQ.key);
         }
     }
 
