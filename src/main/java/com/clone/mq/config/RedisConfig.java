@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -16,32 +16,34 @@ public class RedisConfig {
     public static final String ORDER_QUEUE_KEY = "order:queue";
     public static final String ORDER_EVENT_CHANNEL = "order:event";
 
+    // DLQ + 재시도 실습용 키
+    public static final String RETRY_QUEUE_KEY = "order:retry";
+    public static final String DLQ_KEY = "order:dlq";
+    public static final int MAX_RETRY = 3;
+
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory factory) {
         return new StringRedisTemplate(factory);
     }
 
     @Bean
-    public MessageListenerAdapter stockAdapter(OrderEventSubscriber subscriber) throws Exception {
+    public MessageListenerAdapter stockAdapter(OrderEventSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "onStockUpdate");
         adapter.setSerializer(new StringRedisSerializer());
-        adapter.afterPropertiesSet();
         return adapter;
     }
 
     @Bean
-    public MessageListenerAdapter notificationAdapter(OrderEventSubscriber subscriber) throws Exception {
+    public MessageListenerAdapter notificationAdapter(OrderEventSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "onNotification");
         adapter.setSerializer(new StringRedisSerializer());
-        adapter.afterPropertiesSet();
         return adapter;
     }
 
     @Bean
-    public MessageListenerAdapter deliveryAdapter(OrderEventSubscriber subscriber) throws Exception {
+    public MessageListenerAdapter deliveryAdapter(OrderEventSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "onDelivery");
         adapter.setSerializer(new StringRedisSerializer());
-        adapter.afterPropertiesSet();
         return adapter;
     }
 
@@ -57,7 +59,7 @@ public class RedisConfig {
         container.setConnectionFactory(factory);
 
         // 구독할 토픽 명
-        PatternTopic topic = new PatternTopic(ORDER_EVENT_CHANNEL);
+        ChannelTopic topic = new ChannelTopic(ORDER_EVENT_CHANNEL);
 
         // 해당 토픽을 구독하는 서비스
         // 재고 서비스
