@@ -142,6 +142,15 @@ redis-cli DEL    order:retry order:dlq   # 수동 초기화
 
 ## 변경 이력
 
+### v0.3 — Cursor 룰 추가
+
+**추가**
+- [`.cursor/rules/java-naming.mdc`](.cursor/rules/java-naming.mdc)
+  - Java 변수명 컨벤션 (단일 문자/축약어 금지, 역할 기반 작명)
+  - `globs: **/*.java` 매칭 시 자동 적용
+  - 원본은 `.claude/skills/java-naming-validator/SKILL.md` (Claude Code용 스킬)
+  - 두 시스템(Claude Skill / Cursor Rule)을 병행 유지하는 방식 채택
+
 ### v0.2 — 재시도 + DLQ 추가
 
 **추가**

@@ -1,0 +1,68 @@
+---
+description: Java 변수명 가이드 — 단일 문자/축약어 금지, 의도 드러나는 이름 사용
+globs: **/*.java
+alwaysApply: false
+---
+
+# Java Naming
+
+## 허용 예외 (지적하지 않음)
+
+| 케이스 | 예시 |
+|--------|------|
+| for 루프 인덱스 | `i`, `j`, `k` |
+| 스트림 람다 짧은 스코프 | `.map(e -> ...)`, `.filter(s -> ...)` |
+| 수학 공식 변수 | `x`, `y`, `z` |
+| catch 단순 재던지기 | `catch (Exception e)` |
+
+## 금지 패턴
+
+### 단일 문자 / 의미 없는 약어
+
+```java
+// BAD
+long n = seq.incrementAndGet();
+String msg = buildMessage();
+int cnt = items.size();
+String tmp = process(value);
+Object obj = factory.get();
+
+// GOOD
+long messageSeq = seq.incrementAndGet();
+String errorMessage = buildMessage();
+int itemCount = items.size();
+String processedValue = process(value);
+Object createdInstance = factory.get();
+```
+
+### 타입명 약어 (역할 기반으로 작명)
+
+```java
+// BAD
+RedisTemplate rt = ...;
+StringRedisTemplate srt = ...;
+MessageListenerAdapter mla = ...;
+
+// GOOD
+RedisTemplate redisTemplate = ...;
+StringRedisTemplate stringRedisTemplate = ...;
+MessageListenerAdapter stockAdapter = ...;
+```
+
+## 네이밍 결정 가이드
+
+| 의미 | 패턴 |
+|------|------|
+| 카운터/순번 | `*Count`, `*Seq`, `*Index` |
+| 플래그 | `is*`, `has*`, `should*` |
+| 메시지/텍스트 | `*Message`, `*Payload`, `*Content` |
+| 결과 | `*Result`, `*Response`, `*Output` |
+| 크기/개수 | `*Size`, `*Count`, `*Length` |
+| 설정값 | `*Config`, `*Setting`, `*Threshold` |
+
+## 원칙
+
+- 도메인 의미 우선 (`messageSeq` > `counter`)
+- 사용 목적 반영 (`retryCount` > `count`)
+- 타입 반복 금지 (타입은 선언에 이미 있음)
+- 길이보다 명확성 우선 (2~3 단어 조합 허용)
