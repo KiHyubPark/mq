@@ -33,10 +33,8 @@ public class RetryDlqConsumer {
         int retry = parseRetry(message);
 
         System.out.println(DIVIDER);
-        System.out.printf(" [#%d] POP   %s  ←  '%s'%n",
-                messageSeq, RedisQueue.RETRY.key, message);
-        System.out.printf("       parse payload=%s, retry=%d/%d%n",
-                payload, retry, RedisKeys.MAX_RETRY);
+        System.out.printf(" [#%d] POP   %s  ←  '%s'  (retry=%d/%d)%n",
+                messageSeq, RedisQueue.RETRY.key, payload, retry, RedisKeys.MAX_RETRY);
 
         // 학습용 강제 실패 트리거: payload 가 "FAIL_" 로 시작하면 실패로 간주
         boolean failed = payload.startsWith("FAIL_");
