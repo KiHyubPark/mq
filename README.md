@@ -32,14 +32,9 @@ test-retry-dlq.sh ──RPUSH──► order:retry ──LPOP──► RetryDlqC
 - Redis 6+ (로컬 `localhost:6379`)
 - `redis-cli` (테스트 스크립트가 사용)
 
-## 실행
-
 ```bash
-./gradlew bootRun
+./gradlew bootRun   # 포트 8090, 모든 컨슈머/구독자 자동 등록
 ```
-
-- 애플리케이션 포트: `8090` ([`src/main/resources/application.yml`](src/main/resources/application.yml))
-- 모든 컨슈머/구독자는 자동 등록됩니다.
 
 ---
 
@@ -61,7 +56,7 @@ test-retry-dlq.sh ──RPUSH──► order:retry ──LPOP──► RetryDlqC
 - `order:event` 채널로 `ORDER_COMPLETE:XX` 메시지 5건 발행
 - [`OrderEventSubscriber`](src/main/java/com/clone/mq/pubsub/OrderEventSubscriber.java)의 3개 핸들러(재고/알림/배송)가 동시에 수신
 
-## 실습 3. 재시도 + DLQ (신규 추가)
+## 실습 3. 재시도 + DLQ
 
 ```bash
 ./test-retry-dlq.sh
@@ -133,7 +128,7 @@ redis-cli DEL    order:retry order:dlq   # 수동 초기화
 
 ### 설계 메모
 
-- 재시도는 **별도 스레드/타이머가 아니라**, 같은 컨슈머가 **메시지를 같은 큐 뒤에 다시 RPUSH**해 다음 폴링 사이클에 자기가 다시 꺼내 보는 “즉시 재시도” 방식입니다 (가장 단순한 형태).
+- 재시도는 **별도 스레드/타이머가 아니라**, 같은 컨슈머가 **메시지를 같은 큐 뒤에 다시 RPUSH**해 다음 폴링 사이클에 자기가 다시 꺼내 보는 "즉시 재시도" 방식입니다 (가장 단순한 형태).
 - 정상 케이스(`OK`)는 [`test-orders.sh`](test-orders.sh)가 이미 시연하므로, [`test-retry-dlq.sh`](test-retry-dlq.sh)에는 **포함하지 않습니다** (재시도/DLQ 흐름에 집중).
 - Pub/Sub 채널(`order:event`)에는 ack 개념이 없어 재시도 패턴이 자연스럽게 맞지 않습니다. 그래서 `RetryDlqConsumer`는 List 큐에만 연결되어 있습니다.
 
@@ -159,49 +154,3 @@ redis-cli DEL    order:retry order:dlq   # 수동 초기화
 | [`OrderConsumer`](src/main/java/com/clone/mq/list/OrderConsumer.java) | 실습 1 — 기본 큐 소비 |
 | [`OrderEventSubscriber`](src/main/java/com/clone/mq/pubsub/OrderEventSubscriber.java) | 실습 2 — Pub/Sub 핸들러 3개 |
 | [`RetryDlqConsumer`](src/main/java/com/clone/mq/list/RetryDlqConsumer.java) | 실습 3 — 재시도 + DLQ |
-
----
-
-## 변경 이력
-
-### v0.3 — Cursor 룰 추가
-
-**추가**
-- [`.cursor/rules/java-naming.mdc`](.cursor/rules/java-naming.mdc)
-  - Java 변수명 컨벤션 (단일 문자/축약어 금지, 역할 기반 작명)
-  - `globs: **/*.java` 매칭 시 자동 적용
-  - 원본은 `.claude/skills/java-naming-validator/SKILL.md` (Claude Code용 스킬)
-  - 두 시스템(Claude Skill / Cursor Rule)을 병행 유지하는 방식 채택
-
-### v0.2 — 재시도 + DLQ 추가
-
-**추가**
-- [`src/main/java/com/clone/mq/list/RetryDlqConsumer.java`](src/main/java/com/clone/mq/list/RetryDlqConsumer.java)
-  - `order:retry` 1초 폴링 소비
-  - `FAIL_*` 페이로드는 강제 실패 트리거
-  - `MAX_RETRY=3` 한도까지 즉시 재시도, 초과 시 `order:dlq`로 격리
-  - 시퀀스 번호 + 구분선이 들어간 블록형 로그 출력
-- [`test-retry-dlq.sh`](test-retry-dlq.sh)
-  - 실행 시 `order:retry` / `order:dlq` 자동 초기화
-  - `FAIL_ORDER-9` 1건만 적재해 RETRY 2 + DLQ 1 블록 시연
-
-**수정**
-- [`src/main/java/com/clone/mq/config/RedisConfig.java`](src/main/java/com/clone/mq/config/RedisConfig.java)
-  - 상수 추가: `RETRY_QUEUE_KEY`, `DLQ_KEY`, `MAX_RETRY`
-
-**무영향 (변경 없음)**
-- [`OrderConsumer`](src/main/java/com/clone/mq/list/OrderConsumer.java), [`OrderEventSubscriber`](src/main/java/com/clone/mq/pubsub/OrderEventSubscriber.java)
-- [`test-orders.sh`](test-orders.sh), [`test-events.sh`](test-events.sh)
-
-### v0.1 — 초기
-
-- 기본 큐(List) 소비 + Pub/Sub 구독자 데모
-- 테스트 스크립트 2종(`test-orders.sh`, `test-events.sh`)
-
----
-
-## 다음 확장 후보
-
-- **Delay Queue**: `ZSET(score=실행시각)` 기반 지연 처리 (재시도 backoff에 활용 가능)
-- **Idempotency**: `SET key value NX EX`로 중복 처리 방지
-- **Redis Streams + Consumer Group**: ack/pending/reclaim까지 포함한 본격 MQ 모델
